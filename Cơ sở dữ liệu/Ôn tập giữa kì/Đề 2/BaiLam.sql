@@ -53,7 +53,7 @@ where	MaNV in (select	top 1 MaNV
 				from	PhanCong
 				where	year(NgayThamGia) in (2016, 2017)
 				group by (MaNV)
-				order by count(MaNV) desc)
+				order by sum(SLNgayCong) desc)
 
 --8 (1đ) Tạo câu query lấy danh sách các nhân viên chưa tham gia bất kỳ công trình nào trong năm 2017.
 select	*
@@ -66,16 +66,12 @@ where	MaNV not in (select	MaNV
 --chạy câu truy vấn này một bảng ThongKeNhanVien mới sẽ được tạo, chứa thông tin MaNV, HoTen, Tổng số ngày công.
 
 --Tạo bảng ThongKeNhanVien
-select	p.MaNV, n.HoTen, count(p.MaNV) as TongSoNgayCong
-into	ThongKeNhanVien
+select	n.MaNV, n.HoTen, sum(SLNgayCong) as TongSoNgayCong 
+into ThongKeNhanVien
 from	NhanVien n, PhanCong p
-where	p.MaNV = n.MaNV and
-		p.MaNV in (select MaNV 
-				from	PhanCong
-				where	year(NgayThamGia) = 2016
-				group by (MaNV)
-				having	count(MaNV) > 10)
-group by	p.MaNV, n.HoTen
+where	n.MaNV = p.MaNV and year(p.NgayThamGia) = 2016
+group by	n.MaNV, n.HoTen
+having sum(SLNgayCong) < 10
 
 --Xem bảng
 select	* from	ThongKeNhanVien
@@ -86,11 +82,25 @@ drop table	ThongKeNhanVien
 --và cụ thể trong từng công trình là bao nhiêu nhân viên. 
 --Gồm có: các dòng là các tên phòng ban, các cột là tổng số lượng và số lượng nhân viên theo từng mã công trình.
 
-select	b.TenPB, c.MaCT, count(p.MaNV) as SoLuongNV 
-from	CongTrinh c, PhanCong p, NhanVien n, PhongBan b
-where	b.MaPB = n.MaPB
-		and c.MaCT = p.MaCT
-		and	p.MaNV = n.MaNV
+--select	b.TenPB, c.MaCT, count(p.MaNV) as SoLuongNV 
+--from	CongTrinh c, PhanCong p, NhanVien n, PhongBan b
+--where	b.MaPB = n.MaPB
+--		and c.MaCT = p.MaCT
+--		and	p.MaNV = n.MaNV
 		
-group by	b.MaPB, b.TenPB, p.MaNV, c.MaCT
-order by c.MaCT asc
+--group by	b.MaPB, b.TenPB, p.MaNV, c.MaCT
+--order by c.MaCT asc
+
+select	TenPB, [CT1], [CT2], [CT3], [CT4],
+		'Tong' = [CT1] + [CT2] + [CT3] + [CT4]
+from	(select	b.TenPB, c.MaCT as Mct , sum(count(p.MaNV)) as TongSoNV
+		from	CongTrinh c, PhanCong p, NhanVien n, PhongBan b
+		where	b.MaPB = n.MaPB
+				and c.MaCT = p.MaCT
+				and	p.MaNV = n.MaNV
+		group by b.TenPB, p.MaNV, c.MaCT) A
+
+Pivot
+(
+	sum(TongSoNV) for Mct in ([CT1], [CT2], [CT3], [CT4])
+) B
